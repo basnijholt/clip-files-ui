@@ -113,41 +113,70 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Copy pattern to clipboard
-            document.querySelectorAll('.pattern-btn').forEach(button => {
-                button.addEventListener('click', async function() {
-                    const repoName = this.dataset.repo;
-                    const patternName = this.dataset.pattern;
-                    const statusElement = this.closest('.card-body').querySelector('.copy-status');
+            // State variable to hold fetched content for each button
+            const contentStore = {};
 
+            // Function to handle the copy logic
+            async function handleCopyClick(button) {
+                const repoName = button.dataset.repo;
+                const patternName = button.dataset.pattern;
+                const statusElement = button.closest('.card-body').querySelector('.copy-status');
+                const buttonId = `btn-${repoName}-${patternName}`; // Unique ID for storing content
+
+                // If content is already fetched, copy it
+                if (contentStore[buttonId]) {
                     try {
-                        statusElement.textContent = "Generating content...";
-                        statusElement.style.display = 'block';
-
-                        const response = await fetch(`/api/run_clip_files/${repoName}/${encodeURIComponent(patternName)}`, {
-                            method: 'POST'
-                        });
-
-                        if (!response.ok) {
-                            throw new Error('Failed to generate content');
-                        }
-
-                        const data = await response.json();
-
-                        if (data.success) {
-                            // Copy to clipboard
-                            await navigator.clipboard.writeText(data.content);
-                            statusElement.textContent = `Successfully copied to clipboard! (${data.tokens} tokens)`;
-                            statusElement.className = 'copy-status alert alert-success';
-                        } else {
-                            statusElement.textContent = data.message;
-                            statusElement.className = 'copy-status alert alert-danger';
-                        }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        statusElement.textContent = 'Error: ' + error.message;
-                        statusElement.className = 'copy-status alert alert-danger';
+                        navigator.clipboard.writeText(contentStore[buttonId].content);
+                        statusElement.textContent = `Successfully copied to clipboard! (${contentStore[buttonId].tokens} tokens)`;
+                        statusElement.className = 'copy-status alert alert-success d-block'; // Ensure visible
+                        // Optionally reset after copy: delete contentStore[buttonId]; button.textContent = `Copy: ${patternName}`;
+                    } catch (err) {
+                        console.error('Clipboard write failed:', err);
+                        statusElement.textContent = 'Error: Failed to copy to clipboard.';
+                        statusElement.className = 'copy-status alert alert-danger d-block';
                     }
+                    return; // Stop here after copying
+                }
+
+                // If content not fetched yet, fetch it (first click)
+                try {
+                    statusElement.textContent = "Generating content...";
+                    statusElement.className = 'copy-status alert alert-info d-block'; // Use info class
+                    statusElement.style.display = 'block'; // Ensure visible
+
+                    const response = await fetch(`/api/run_clip_files/${repoName}/${encodeURIComponent(patternName)}`, {
+                        method: 'POST'
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.text(); // Try to get error text
+                        throw new Error(`Failed to generate content: ${response.status} ${errorData}`);
+                    }
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Store fetched content
+                        contentStore[buttonId] = { content: data.content, tokens: data.tokens };
+                        statusElement.textContent = `Content ready (${data.tokens} tokens). Click again to copy.`;
+                        statusElement.className = 'copy-status alert alert-warning d-block'; // Use warning class
+                        // Optional: change button text e.g., button.textContent = 'Copy to Clipboard';
+                    } else {
+                        statusElement.textContent = `Error: ${data.message}`;
+                        statusElement.className = 'copy-status alert alert-danger d-block';
+                    }
+                } catch (error) {
+                    console.error('Error fetching content:', error);
+                    statusElement.textContent = 'Error: ' + error.message;
+                    statusElement.className = 'copy-status alert alert-danger d-block';
+                    delete contentStore[buttonId]; // Clear stored content on error
+                }
+            }
+
+            // Add listeners to existing pattern buttons
+            document.querySelectorAll('.pattern-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    handleCopyClick(this); // Pass the button element
                 });
             });
 
@@ -237,38 +266,9 @@
                         newButton.dataset.pattern = patternName;
                         newButton.textContent = `Copy: ${patternName}`;
 
-                        // Add event listener to the new button
-                        newButton.addEventListener('click', async function() {
-                            const statusElement = this.closest('.card-body').querySelector('.copy-status');
-
-                            try {
-                                statusElement.textContent = "Generating content...";
-                                statusElement.style.display = 'block';
-
-                                const response = await fetch(`/api/run_clip_files/${repoName}/${encodeURIComponent(patternName)}`, {
-                                    method: 'POST'
-                                });
-
-                                if (!response.ok) {
-                                    throw new Error('Failed to generate content');
-                                }
-
-                                const data = await response.json();
-
-                                if (data.success) {
-                                    // Copy to clipboard
-                                    await navigator.clipboard.writeText(data.content);
-                                    statusElement.textContent = `Successfully copied to clipboard! (${data.tokens} tokens)`;
-                                    statusElement.className = 'copy-status alert alert-success';
-                                } else {
-                                    statusElement.textContent = data.message;
-                                    statusElement.className = 'copy-status alert alert-danger';
-                                }
-                            } catch (error) {
-                                console.error('Error:', error);
-                                statusElement.textContent = 'Error: ' + error.message;
-                                statusElement.className = 'copy-status alert alert-danger';
-                            }
+                        // Add the SAME two-step copy listener to the new button
+                        newButton.addEventListener('click', function() {
+                            handleCopyClick(this); // Use the same handler
                         });
 
                         buttonContainer.appendChild(newButton);
