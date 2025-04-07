@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import json
 import logging
 import os
 import subprocess
 import tempfile
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any
 
 import yaml
 from fastapi import FastAPI, Form, HTTPException, Request
@@ -208,7 +210,7 @@ async def get_repositories():
 
 
 @app.post("/api/update_repository/{repo_name}")
-async def update_repo_endpoint(repo_name: str, branch: Optional[str] = None):
+async def update_repo_endpoint(repo_name: str, branch: str | None = None):
     config = load_config()
 
     repo = next((r for r in config.repositories if r.name == repo_name), None)
