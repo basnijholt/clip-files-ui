@@ -27,3 +27,9 @@ repositories:
   name: clip-files
   patterns: {}
   url: https://github.com/basnijholt/clip-files/
+- branch: main
+  name: dotbins
+  patterns:
+    readme:
+    - README.md
+  url: https://github.com/basnijholt/dotbins
