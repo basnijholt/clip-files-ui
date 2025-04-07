@@ -6,6 +6,8 @@ This project is a **web-based tool** designed to streamline interactions between
 
 Inspired by the command-line utility [`clip-files`](https://github.com/basnijholt/clip-files/), this tool provides a web interface for managing repository contexts. Read more about the workflow that led to these tools in [this blog post](https://www.nijho.lt/post/using-llms/).
 
+https://github.com/user-attachments/assets/0130963e-3918-47ab-b87d-7047e55fb33f
+
 ## ✨ Core Functionality
 
 The **GitHub Repository Clipboard Manager**:
