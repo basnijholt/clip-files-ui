@@ -1,0 +1,26 @@
+services:
+  clip-files:
+    build: .
+    container_name: clip-files
+    hostname: clip-files
+    environment:
+      - TZ=America/Los_Angeles
+    volumes:
+      - ./config.yaml:/app/config.yaml
+      - ./repos:/app/repos
+    networks:
+      - mynetwork
+    ports:
+      - 8980:8000 # Web UI
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.clip-files.rule=Host(`clip.${DOMAIN}`)
+      - traefik.http.routers.clip-files.entrypoints=websecure
+      - traefik.http.routers.clip-files-local.rule=Host(`clip.local`)
+      - traefik.http.routers.clip-files-local.entrypoints=web
+      - traefik.http.services.clip-files.loadbalancer.server.port=8000
+
+networks:
+  mynetwork:
+    external: true
