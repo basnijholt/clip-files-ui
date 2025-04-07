@@ -25,13 +25,14 @@ repositories:
   url: https://github.com/pipefunc/pipefunc
 - branch: main
   name: clip-files
-  patterns: {}
+  patterns:
+    Code + README:
+    - clip_files.py
+    - README.md
   url: https://github.com/basnijholt/clip-files/
 - branch: main
   name: dotbins
   patterns:
-    readme:
-    - README.md
     All Code + e2e tests + examples:
     - README.md
     - dotbins.yaml
@@ -39,4 +40,6 @@ repositories:
     - examples/examples.yaml
     - tests/test_e2e.py
     - dotbins/*.py
+    readme:
+    - README.md
   url: https://github.com/basnijholt/dotbins
