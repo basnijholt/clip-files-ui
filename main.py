@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import subprocess
 import tempfile
 from typing import Annotated, Any
@@ -25,7 +26,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Global variables
-GIT_EXECUTABLE = "/opt/homebrew/bin/git"  # Path to the git executable
+GIT_EXECUTABLE: str = shutil.which("git")  # type: ignore[assignment]
+assert GIT_EXECUTABLE is not None, "git executable not found"
 
 app = FastAPI(title="GitHub Repository Clipboard Manager")
 """FastAPI application instance."""
