@@ -1,3 +1,5 @@
+"""Main application for the GitHub Repository Clipboard Manager."""
+
 from __future__ import annotations
 
 import json
@@ -21,7 +23,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Global variables
+GIT_EXECUTABLE = "/opt/homebrew/bin/git"  # Path to the git executable
+
 app = FastAPI(title="GitHub Repository Clipboard Manager")
+"""FastAPI application instance."""
 
 # Directory to store the repositories
 REPOS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "repos")
@@ -39,6 +45,8 @@ templates = Jinja2Templates(directory="templates")
 
 # Models
 class RepoConfig(BaseModel):
+    """Configuration for a single repository."""
+
     name: str
     url: str
     branch: str = "main"
@@ -46,11 +54,14 @@ class RepoConfig(BaseModel):
 
 
 class Config(BaseModel):
+    """Overall configuration containing a list of repositories."""
+
     repositories: list[RepoConfig]
 
 
 # Load configuration
 def load_config() -> Config:
+    """Load configuration from the YAML file or create a default one."""
     try:
         if os.path.exists(CONFIG_FILE):
             with open(CONFIG_FILE) as f:
@@ -98,50 +109,56 @@ def load_config() -> Config:
             with open(CONFIG_FILE, "w") as f:
                 yaml.dump(default_config, f)
             return Config(**default_config)
-    except Exception as e:
-        logger.exception(f"Error loading configuration: {e!s}")
+    except Exception:
+        logger.exception("Error loading configuration")
         raise
 
 
 # Save configuration
 def save_config(config: Config) -> None:
+    """Save the current configuration to the YAML file."""
     with open(CONFIG_FILE, "w") as f:
         yaml.dump(json.loads(config.json()), f)
 
 
 # Clone or update repository
 def update_repository(repo_name: str, repo_url: str, branch: str = "main") -> bool:
+    """Clone a repository if it doesn't exist, or update it if it does."""
     repo_path = os.path.join(REPOS_DIR, repo_name)
 
     try:
         if os.path.exists(repo_path):
             # Update existing repository
-            logger.info(f"Updating repository: {repo_name}")
-            subprocess.run(["git", "-C", repo_path, "fetch", "--all"], check=True)
-            subprocess.run(["git", "-C", repo_path, "checkout", branch], check=True)
+            logger.info("Updating repository: %s", repo_name)
+            subprocess.run([GIT_EXECUTABLE, "-C", repo_path, "fetch", "--all"], check=True)
             subprocess.run(
-                ["git", "-C", repo_path, "reset", "--hard", f"origin/{branch}"],
+                [GIT_EXECUTABLE, "-C", repo_path, "checkout", branch],
                 check=True,
             )
             subprocess.run(
-                ["git", "-C", repo_path, "pull", "origin", branch],
+                [GIT_EXECUTABLE, "-C", repo_path, "reset", "--hard", f"origin/{branch}"],
+                check=True,
+            )
+            subprocess.run(
+                [GIT_EXECUTABLE, "-C", repo_path, "pull", "origin", branch],
                 check=True,
             )
             return True
         # Clone repository
-        logger.info(f"Cloning repository: {repo_name} from {repo_url}")
+        logger.info("Cloning repository: %s from %s", repo_name, repo_url)
         subprocess.run(
-            ["git", "clone", "--branch", branch, repo_url, repo_path],
+            [GIT_EXECUTABLE, "clone", "--branch", branch, repo_url, repo_path],
             check=True,
         )
         return True
-    except subprocess.CalledProcessError as e:
-        logger.exception(f"Git operation failed: {e!s}")
+    except subprocess.CalledProcessError:
+        logger.exception("Git operation failed")
         return False
 
 
 # Run clip-files on specific patterns
 def run_clip_files(repo_name: str, patterns: list[str]) -> dict[str, Any]:
+    """Run the clip-files logic on specified patterns within a repository."""
     repo_path = os.path.join(REPOS_DIR, repo_name)
 
     if not os.path.exists(repo_path):
@@ -189,13 +206,14 @@ def run_clip_files(repo_name: str, patterns: list[str]) -> dict[str, Any]:
             "content": content,
         }
     except Exception as e:
-        logger.exception(f"Error running clip-files: {e!s}")
+        logger.exception("Error running clip-files")
         return {"success": False, "message": f"Error: {e!s}"}
 
 
 # Routes
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
+async def read_root(request: Request) -> HTMLResponse:
+    """Serve the main HTML page."""
     config = load_config()
     return templates.TemplateResponse(
         "index.html",
@@ -204,13 +222,18 @@ async def read_root(request: Request):
 
 
 @app.get("/api/repositories")
-async def get_repositories():
+async def get_repositories() -> dict[str, Any]:
+    """Get the list of configured repositories."""
     config = load_config()
     return {"repositories": config.repositories}
 
 
 @app.post("/api/update_repository/{repo_name}")
-async def update_repo_endpoint(repo_name: str, branch: str | None = None):
+async def update_repo_endpoint(
+    repo_name: str,
+    branch: str | None = None,
+) -> dict[str, Any]:
+    """Update a specific repository, optionally changing the branch."""
     config = load_config()
 
     repo = next((r for r in config.repositories if r.name == repo_name), None)
@@ -233,7 +256,11 @@ async def update_repo_endpoint(repo_name: str, branch: str | None = None):
 
 
 @app.post("/api/run_clip_files/{repo_name}/{pattern_name}")
-async def run_clip_files_endpoint(repo_name: str, pattern_name: str):
+async def run_clip_files_endpoint(
+    repo_name: str,
+    pattern_name: str,
+) -> dict[str, Any]:
+    """Run clip-files for a specific repository and pattern name."""
     config = load_config()
 
     repo = next((r for r in config.repositories if r.name == repo_name), None)
@@ -252,10 +279,11 @@ async def run_clip_files_endpoint(repo_name: str, pattern_name: str):
 
 @app.post("/api/add_repository")
 async def add_repository(
-    name: Annotated[str, Form()] = ...,
-    url: Annotated[str, Form()] = ...,
+    name: Annotated[str, Form()],
+    url: Annotated[str, Form()],
     branch: Annotated[str, Form()] = "main",
-):
+) -> dict[str, Any]:
+    """Add a new repository to the configuration and clone it."""
     config = load_config()
 
     # Check if repository already exists
@@ -283,10 +311,11 @@ async def add_repository(
 
 @app.post("/api/add_pattern")
 async def add_pattern(
-    repo_name: Annotated[str, Form()] = ...,
-    pattern_name: Annotated[str, Form()] = ...,
-    patterns: Annotated[str, Form()] = ...,
-):
+    repo_name: Annotated[str, Form()],
+    pattern_name: Annotated[str, Form()],
+    patterns: Annotated[str, Form()],
+) -> dict[str, Any]:
+    """Add a new pattern definition to a specific repository."""
     config = load_config()
 
     repo = next((r for r in config.repositories if r.name == repo_name), None)
@@ -304,7 +333,11 @@ async def add_pattern(
 
 
 @app.post("/api/update_branch/{repo_name}")
-async def update_branch(repo_name: str, branch: Annotated[str, Form()] = ...):
+async def update_branch(
+    repo_name: str,
+    branch: Annotated[str, Form()],
+) -> dict[str, Any]:
+    """Update the branch for a specific repository."""
     config = load_config()
 
     repo = next((r for r in config.repositories if r.name == repo_name), None)
@@ -336,4 +369,4 @@ async def startup_event() -> None:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)  # noqa: S104
