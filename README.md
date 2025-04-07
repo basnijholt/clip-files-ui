@@ -1,5 +1,7 @@
 # 📋 GitHub Repository Clipboard Manager
 
+_For when you get a brilliant coding idea in the bath and need to discuss it with an AI immediately (no judgment!)._
+
 This project is a **web-based tool** designed to streamline interactions between **GitHub repositories** and **large language models (LLMs)** like ChatGPT, Claude, or Bard. The core purpose is to make it effortless to capture, format, and present code from repositories to LLMs for assistance or analysis.
 
 Inspired by the command-line utility [`clip-files`](https://github.com/basnijholt/clip-files/), this tool provides a web interface for managing repository contexts. Read more about the workflow that led to these tools in [this blog post](https://www.nijho.lt/post/using-llms/).
