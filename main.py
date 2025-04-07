@@ -1,19 +1,21 @@
-from fastapi import FastAPI, HTTPException, Form, Request
+import json
+import logging
+import os
+import subprocess
+import tempfile
+from typing import Annotated, Any, Optional
+
+import yaml
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import subprocess
-import os
-import json
-import tempfile
-import yaml
-from typing import Dict, List, Any, Optional
 from pydantic import BaseModel
-import logging
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -38,18 +40,18 @@ class RepoConfig(BaseModel):
     name: str
     url: str
     branch: str = "main"
-    patterns: Dict[str, List[str]]
+    patterns: dict[str, list[str]]
 
 
 class Config(BaseModel):
-    repositories: List[RepoConfig]
+    repositories: list[RepoConfig]
 
 
 # Load configuration
 def load_config() -> Config:
     try:
         if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, "r") as f:
+            with open(CONFIG_FILE) as f:
                 config_data = yaml.safe_load(f)
                 return Config(**config_data)
         else:
@@ -67,7 +69,7 @@ def load_config() -> Config:
                                 "configs/shell",
                                 "install",
                                 "install.conf.yaml",
-                            ]
+                            ],
                         },
                     },
                     {
@@ -89,18 +91,18 @@ def load_config() -> Config:
                             ],
                         },
                     },
-                ]
+                ],
             }
             with open(CONFIG_FILE, "w") as f:
                 yaml.dump(default_config, f)
             return Config(**default_config)
     except Exception as e:
-        logger.error(f"Error loading configuration: {str(e)}")
+        logger.exception(f"Error loading configuration: {e!s}")
         raise
 
 
 # Save configuration
-def save_config(config: Config):
+def save_config(config: Config) -> None:
     with open(CONFIG_FILE, "w") as f:
         yaml.dump(json.loads(config.json()), f)
 
@@ -120,23 +122,24 @@ def update_repository(repo_name: str, repo_url: str, branch: str = "main") -> bo
                 check=True,
             )
             subprocess.run(
-                ["git", "-C", repo_path, "pull", "origin", branch], check=True
+                ["git", "-C", repo_path, "pull", "origin", branch],
+                check=True,
             )
             return True
-        else:
-            # Clone repository
-            logger.info(f"Cloning repository: {repo_name} from {repo_url}")
-            subprocess.run(
-                ["git", "clone", "--branch", branch, repo_url, repo_path], check=True
-            )
-            return True
+        # Clone repository
+        logger.info(f"Cloning repository: {repo_name} from {repo_url}")
+        subprocess.run(
+            ["git", "clone", "--branch", branch, repo_url, repo_path],
+            check=True,
+        )
+        return True
     except subprocess.CalledProcessError as e:
-        logger.error(f"Git operation failed: {str(e)}")
+        logger.exception(f"Git operation failed: {e!s}")
         return False
 
 
 # Run clip-files on specific patterns
-def run_clip_files(repo_name: str, patterns: List[str]) -> Dict[str, Any]:
+def run_clip_files(repo_name: str, patterns: list[str]) -> dict[str, Any]:
     repo_path = os.path.join(REPOS_DIR, repo_name)
 
     if not os.path.exists(repo_path):
@@ -169,7 +172,7 @@ def run_clip_files(repo_name: str, patterns: List[str]) -> Dict[str, Any]:
         from clip_files import generate_combined_content_with_specific_files
 
         content, tokens = generate_combined_content_with_specific_files(
-            file_paths=expanded_files
+            file_paths=expanded_files,
         )
 
         # Write to temp file (we'll read this back in JavaScript to copy to clipboard)
@@ -184,8 +187,8 @@ def run_clip_files(repo_name: str, patterns: List[str]) -> Dict[str, Any]:
             "content": content,
         }
     except Exception as e:
-        logger.error(f"Error running clip-files: {str(e)}")
-        return {"success": False, "message": f"Error: {str(e)}"}
+        logger.exception(f"Error running clip-files: {e!s}")
+        return {"success": False, "message": f"Error: {e!s}"}
 
 
 # Routes
@@ -193,7 +196,8 @@ def run_clip_files(repo_name: str, patterns: List[str]) -> Dict[str, Any]:
 async def read_root(request: Request):
     config = load_config()
     return templates.TemplateResponse(
-        "index.html", {"request": request, "config": config}
+        "index.html",
+        {"request": request, "config": config},
     )
 
 
@@ -220,10 +224,10 @@ async def update_repo_endpoint(repo_name: str, branch: Optional[str] = None):
 
     if success:
         return {"message": f"Repository {repo_name} updated successfully"}
-    else:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update repository {repo_name}"
-        )
+    raise HTTPException(
+        status_code=500,
+        detail=f"Failed to update repository {repo_name}",
+    )
 
 
 @app.post("/api/run_clip_files/{repo_name}/{pattern_name}")
@@ -241,14 +245,14 @@ async def run_clip_files_endpoint(repo_name: str, pattern_name: str):
         )
 
     patterns = repo.patterns[pattern_name]
-    result = run_clip_files(repo_name, patterns)
-
-    return result
+    return run_clip_files(repo_name, patterns)
 
 
 @app.post("/api/add_repository")
 async def add_repository(
-    name: str = Form(...), url: str = Form(...), branch: str = Form("main")
+    name: Annotated[str, Form()] = ...,
+    url: Annotated[str, Form()] = ...,
+    branch: Annotated[str, Form()] = "main",
 ):
     config = load_config()
 
@@ -266,18 +270,20 @@ async def add_repository(
 
     if success:
         return {"message": f"Repository {name} added successfully"}
-    else:
-        # Remove from config if cloning failed
-        config.repositories = [r for r in config.repositories if r.name != name]
-        save_config(config)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to clone repository {name}"
-        )
+    # Remove from config if cloning failed
+    config.repositories = [r for r in config.repositories if r.name != name]
+    save_config(config)
+    raise HTTPException(
+        status_code=500,
+        detail=f"Failed to clone repository {name}",
+    )
 
 
 @app.post("/api/add_pattern")
 async def add_pattern(
-    repo_name: str = Form(...), pattern_name: str = Form(...), patterns: str = Form(...)
+    repo_name: Annotated[str, Form()] = ...,
+    pattern_name: Annotated[str, Form()] = ...,
+    patterns: Annotated[str, Form()] = ...,
 ):
     config = load_config()
 
@@ -296,7 +302,7 @@ async def add_pattern(
 
 
 @app.post("/api/update_branch/{repo_name}")
-async def update_branch(repo_name: str, branch: str = Form(...)):
+async def update_branch(repo_name: str, branch: Annotated[str, Form()] = ...):
     config = load_config()
 
     repo = next((r for r in config.repositories if r.name == repo_name), None)
@@ -311,15 +317,15 @@ async def update_branch(repo_name: str, branch: str = Form(...)):
 
     if success:
         return {"message": f"Branch for {repo_name} updated to {branch} successfully"}
-    else:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update branch for {repo_name}"
-        )
+    raise HTTPException(
+        status_code=500,
+        detail=f"Failed to update branch for {repo_name}",
+    )
 
 
 @app.on_event("startup")
-async def startup_event():
-    """Update all repositories on startup"""
+async def startup_event() -> None:
+    """Update all repositories on startup."""
     config = load_config()
     for repo in config.repositories:
         update_repository(repo.name, repo.url, repo.branch)
