@@ -10,6 +10,7 @@ import tempfile
 from typing import Annotated, Any
 
 import yaml
+from clip_files import generate_combined_content_with_specific_files
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -155,8 +156,6 @@ def run_clip_files(repo_name: str, patterns: list[str]) -> dict[str, Any]:
             tmp_path = tmp.name
 
         # Run clip_files.py functionality directly
-        from clip_files import generate_combined_content_with_specific_files
-
         content, tokens = generate_combined_content_with_specific_files(
             file_paths=expanded_files,
         )
