@@ -66,49 +66,16 @@ def load_config() -> Config:
         if os.path.exists(CONFIG_FILE):
             with open(CONFIG_FILE) as f:
                 config_data = yaml.safe_load(f)
+                if config_data is None:
+                    msg = "Configuration file is empty. Please populate it based on config.example.yaml."
+                    raise ValueError(msg)  # noqa: TRY301
                 return Config(**config_data)
         else:
-            # Create default config
-            default_config = {
-                "repositories": [
-                    {
-                        "name": "dotfiles",
-                        "url": "https://github.com/basnijholt/dotfiles",
-                        "branch": "main",
-                        "patterns": {
-                            "Readme + Scripts + Configs": [
-                                "README.md",
-                                "scripts/*",
-                                "configs/shell",
-                                "install",
-                                "install.conf.yaml",
-                            ],
-                        },
-                    },
-                    {
-                        "name": "pipefunc",
-                        "url": "https://github.com/pipefunc/pipefunc",
-                        "branch": "main",
-                        "patterns": {
-                            "Core + Docs": [
-                                "pipefunc/*.py",
-                                "pipefunc/_pipeline/*.py",
-                                "docs/source/examples/*md",
-                                "docs/source/concepts/*.md",
-                                "README.md",
-                            ],
-                            "Docs Only": [
-                                "docs/source/examples/*md",
-                                "docs/source/concepts/*.md",
-                                "README.md",
-                            ],
-                        },
-                    },
-                ],
-            }
-            with open(CONFIG_FILE, "w") as f:
-                yaml.dump(default_config, f)
-            return Config(**default_config)
+            msg = (
+                f"Configuration file {CONFIG_FILE} not found. "
+                f"Please create it based on config.example.yaml."
+            )
+            raise FileNotFoundError(msg)  # noqa: TRY301
     except Exception:
         logger.exception("Error loading configuration")
         raise
