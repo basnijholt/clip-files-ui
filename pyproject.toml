@@ -11,4 +11,6 @@ dependencies = [
     "pyyaml",
     "tiktoken",
     "pyperclip",
+    "python-multipart",
+    "clip-files>=0.4.0",
 ]

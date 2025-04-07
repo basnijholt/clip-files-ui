@@ -1,0 +1,29 @@
+repositories:
+- branch: main
+  name: dotfiles
+  patterns:
+    Readme + Scripts + Configs:
+    - README.md
+    - scripts/*
+    - configs/shell
+    - install
+    - install.conf.yaml
+  url: https://github.com/basnijholt/dotfiles
+- branch: main
+  name: pipefunc
+  patterns:
+    Core + Docs:
+    - pipefunc/*.py
+    - pipefunc/_pipeline/*.py
+    - docs/source/examples/*md
+    - docs/source/concepts/*.md
+    - README.md
+    Docs Only:
+    - docs/source/examples/*md
+    - docs/source/concepts/*.md
+    - README.md
+  url: https://github.com/pipefunc/pipefunc
+- branch: main
+  name: clip-files
+  patterns: {}
+  url: https://github.com/basnijholt/clip-files/
