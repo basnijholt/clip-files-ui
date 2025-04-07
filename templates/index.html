@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Repository Clipboard Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding: 20px;
+        }
+        .repo-card {
+            margin-bottom: 20px;
+        }
+        .pattern-btn {
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .copy-status {
+            display: none;
+            margin-top: 10px;
+        }
+        .branch-control {
+            margin-bottom: 15px;
+        }
+        .add-form {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">GitHub Repository Clipboard Manager</h1>
+        
+        <div id="status-message" class="alert alert-info d-none" role="alert"></div>
+        
+        <div class="row mb-4">
+            <div class="col-12">
+                <button id="update-all" class="btn btn-primary">Update All Repositories</button>
+            </div>
+        </div>
+        
+        <div id="repositories">
+            {% for repo in config.repositories %}
+            <div class="card repo-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>{{ repo.name }}</h5>
+                    <div>
+                        <span class="badge bg-secondary">{{ repo.url }}</span>
+                        <span class="badge bg-info">{{ repo.branch }}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="branch-control">
+                        <div class="input-group">
+                            <input type="text" class="form-control branch-input" value="{{ repo.branch }}" placeholder="Branch name" data-repo="{{ repo.name }}">
+                            <button class="btn btn-outline-secondary update-branch" data-repo="{{ repo.name }}">Switch Branch</button>
+                        </div>
+                    </div>
+                    
+                    <h6>File Patterns:</h6>
+                    <div class="pattern-buttons">
+                        {% for pattern_name, patterns in repo.patterns.items() %}
+                        <button class="btn btn-success pattern-btn" 
+                                data-repo="{{ repo.name }}" 
+                                data-pattern="{{ pattern_name }}">
+                            Copy: {{ pattern_name }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="copy-status alert alert-success" role="alert">
+                        Files copied to clipboard!
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="add-pattern-form">
+                        <h6>Add New Pattern:</h6>
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control pattern-name" placeholder="Pattern Name" aria-label="Pattern Name">
+                            <input type="text" class="form-control pattern-globs" placeholder="File globs (space or comma separated)" aria-label="Patterns">
+                            <button class="btn btn-outline-primary add-pattern-btn" data-repo="{{ repo.name }}">Add</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="add-form">
+            <h3>Add New Repository</h3>
+            <form id="add-repo-form">
+                <div class="mb-3">
+                    <label for="repo-name" class="form-label">Repository Name</label>
+                    <input type="text" class="form-control" id="repo-name" placeholder="e.g., my-project">
+                </div>
+                <div class="mb-3">
+                    <label for="repo-url" class="form-label">Repository URL</label>
+                    <input type="text" class="form-control" id="repo-url" placeholder="https://github.com/username/repo">
+                </div>
+                <div class="mb-3">
+                    <label for="repo-branch" class="form-label">Branch</label>
+                    <input type="text" class="form-control" id="repo-branch" placeholder="main" value="main">
+                </div>
+                <button type="submit" class="btn btn-primary">Add Repository</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Copy pattern to clipboard
+            document.querySelectorAll('.pattern-btn').forEach(button => {
+                button.addEventListener('click', async function() {
+                    const repoName = this.dataset.repo;
+                    const patternName = this.dataset.pattern;
+                    const statusElement = this.closest('.card-body').querySelector('.copy-status');
+                    
+                    try {
+                        statusElement.textContent = "Generating content...";
+                        statusElement.style.display = 'block';
+                        
+                        const response = await fetch(`/api/run_clip_files/${repoName}/${encodeURIComponent(patternName)}`, {
+                            method: 'POST'
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('Failed to generate content');
+                        }
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            // Copy to clipboard
+                            await navigator.clipboard.writeText(data.content);
+                            statusElement.textContent = `Successfully copied to clipboard! (${data.tokens} tokens)`;
+                            statusElement.className = 'copy-status alert alert-success';
+                        } else {
+                            statusElement.textContent = data.message;
+                            statusElement.className = 'copy-status alert alert-danger';
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        statusElement.textContent = 'Error: ' + error.message;
+                        statusElement.className = 'copy-status alert alert-danger';
+                    }
+                });
+            });
+            
+            // Update branch
+            document.querySelectorAll('.update-branch').forEach(button => {
+                button.addEventListener('click', async function() {
+                    const repoName = this.dataset.repo;
+                    const branchInput = this.parentElement.querySelector('.branch-input');
+                    const branch = branchInput.value.trim();
+                    
+                    if (!branch) {
+                        alert('Please enter a branch name');
+                        return;
+                    }
+                    
+                    try {
+                        const statusMsg = document.getElementById('status-message');
+                        statusMsg.textContent = `Updating ${repoName} to branch: ${branch}...`;
+                        statusMsg.classList.remove('d-none', 'alert-success', 'alert-danger');
+                        statusMsg.classList.add('alert-info');
+                        
+                        const response = await fetch(`/api/update_branch/${repoName}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                            },
+                            body: `branch=${encodeURIComponent(branch)}`
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('Failed to update branch');
+                        }
+                        
+                        statusMsg.textContent = `Successfully updated ${repoName} to branch: ${branch}`;
+                        statusMsg.classList.remove('alert-info', 'alert-danger');
+                        statusMsg.classList.add('alert-success');
+                        
+                        // Update the badge
+                        const badge = this.closest('.card-header').querySelector('.badge.bg-info');
+                        badge.textContent = branch;
+                        
+                    } catch (error) {
+                        console.error('Error:', error);
+                        const statusMsg = document.getElementById('status-message');
+                        statusMsg.textContent = 'Error: ' + error.message;
+                        statusMsg.classList.remove('alert-info', 'alert-success');
+                        statusMsg.classList.add('alert-danger', 'd-block');
+                    }
+                });
+            });
+            
+            // Add pattern
+            document.querySelectorAll('.add-pattern-btn').forEach(button => {
+                button.addEventListener('click', async function() {
+                    const repoName = this.dataset.repo;
+                    const patternNameInput = this.parentElement.querySelector('.pattern-name');
+                    const patternGlobsInput = this.parentElement.querySelector('.pattern-globs');
+                    
+                    const patternName = patternNameInput.value.trim();
+                    const patterns = patternGlobsInput.value.trim();
+                    
+                    if (!patternName || !patterns) {
+                        alert('Please enter both a pattern name and file globs');
+                        return;
+                    }
+                    
+                    try {
+                        const formData = new FormData();
+                        formData.append('repo_name', repoName);
+                        formData.append('pattern_name', patternName);
+                        formData.append('patterns', patterns);
+                        
+                        const response = await fetch('/api/add_pattern', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('Failed to add pattern');
+                        }
+                        
+                        // Create a new button for the pattern
+                        const buttonContainer = this.closest('.card-body').querySelector('.pattern-buttons');
+                        const newButton = document.createElement('button');
+                        newButton.className = 'btn btn-success pattern-btn';
+                        newButton.dataset.repo = repoName;
+                        newButton.dataset.pattern = patternName;
+                        newButton.textContent = `Copy: ${patternName}`;
+                        
+                        // Add event listener to the new button
+                        newButton.addEventListener('click', async function() {
+                            const statusElement = this.closest('.card-body').querySelector('.copy-status');
+                            
+                            try {
+                                statusElement.textContent = "Generating content...";
+                                statusElement.style.display = 'block';
+                                
+                                const response = await fetch(`/api/run_clip_files/${repoName}/${encodeURIComponent(patternName)}`, {
+                                    method: 'POST'
+                                });
+                                
+                                if (!response.ok) {
+                                    throw new Error('Failed to generate content');
+                                }
+                                
+                                const data = await response.json();
+                                
+                                if (data.success) {
+                                    // Copy to clipboard
+                                    await navigator.clipboard.writeText(data.content);
+                                    statusElement.textContent = `Successfully copied to clipboard! (${data.tokens} tokens)`;
+                                    statusElement.className = 'copy-status alert alert-success';
+                                } else {
+                                    statusElement.textContent = data.message;
+                                    statusElement.className = 'copy-status alert alert-danger';
+                                }
+                            } catch (error) {
+                                console.error('Error:', error);
+                                statusElement.textContent = 'Error: ' + error.message;
+                                statusElement.className = 'copy-status alert alert-danger';
+                            }
+                        });
+                        
+                        buttonContainer.appendChild(newButton);
+                        
+                        // Clear inputs
+                        patternNameInput.value = '';
+                        patternGlobsInput.value = '';
+                        
+                        alert('Pattern added successfully!');
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('Error: ' + error.message);
+                    }
+                });
+            });
+            
+            // Add repository form
+            document.getElementById('add-repo-form').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const nameInput = document.getElementById('repo-name');
+                const urlInput = document.getElementById('repo-url');
+                const branchInput = document.getElementById('repo-branch');
+                
+                const name = nameInput.value.trim();
+                const url = urlInput.value.trim();
+                const branch = branchInput.value.trim() || 'main';
+                
+                if (!name || !url) {
+                    alert('Please enter both repository name and URL');
+                    return;
+                }
+                
+                try {
+                    const statusMsg = document.getElementById('status-message');
+                    statusMsg.textContent = `Adding repository ${name}...`;
+                    statusMsg.classList.remove('d-none', 'alert-success', 'alert-danger');
+                    statusMsg.classList.add('alert-info');
+                    
+                    const formData = new FormData();
+                    formData.append('name', name);
+                    formData.append('url', url);
+                    formData.append('branch', branch);
+                    
+                    const response = await fetch('/api/add_repository', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Failed to add repository');
+                    }
+                    
+                    statusMsg.textContent = `Successfully added repository ${name}`;
+                    statusMsg.classList.remove('alert-info', 'alert-danger');
+                    statusMsg.classList.add('alert-success');
+                    
+                    // Clear inputs
+                    nameInput.value = '';
+                    urlInput.value = '';
+                    branchInput.value = 'main';
+                    
+                    // Reload the page to show the new repository
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    const statusMsg = document.getElementById('status-message');
+                    statusMsg.textContent = 'Error: ' + error.message;
+                    statusMsg.classList.remove('alert-info', 'alert-success');
+                    statusMsg.classList.add('alert-danger', 'd-block');
+                }
+            });
+            
+            // Update all repositories
+            document.getElementById('update-all').addEventListener('click', async function() {
+                const statusMsg = document.getElementById('status-message');
+                statusMsg.textContent = 'Updating all repositories...';
+                statusMsg.classList.remove('d-none', 'alert-success', 'alert-danger');
+                statusMsg.classList.add('alert-info');
+                
+                try {
+                    const response = await fetch('/api/repositories');
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch repositories');
+                    }
+                    
+                    const data = await response.json();
+                    const repos = data.repositories;
+                    
+                    // Update each repository sequentially
+                    for (const repo of repos) {
+                        statusMsg.textContent = `Updating ${repo.name}...`;
+                        
+                        const updateResponse = await fetch(`/api/update_repository/${repo.name}`, {
+                            method: 'POST'
+                        });
+                        
+                        if (!updateResponse.ok) {
+                            throw new Error(`Failed to update ${repo.name}`);
+                        }
+                    }
+                    
+                    statusMsg.textContent = 'All repositories updated successfully!';
+                    statusMsg.classList.remove('alert-info', 'alert-danger');
+                    statusMsg.classList.add('alert-success');
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    statusMsg.textContent = 'Error: ' + error.message;
+                    statusMsg.classList.remove('alert-info', 'alert-success');
+                    statusMsg.classList.add('alert-danger', 'd-block');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
