@@ -32,4 +32,11 @@ repositories:
   patterns:
     readme:
     - README.md
+    All Code + e2e tests + examples:
+    - README.md
+    - dotbins.yaml
+    - examples/dotbins.yaml
+    - examples/examples.yaml
+    - tests/test_e2e.py
+    - dotbins/*.py
   url: https://github.com/basnijholt/dotbins
