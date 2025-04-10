@@ -44,3 +44,19 @@ repositories:
     readme:
     - README.md
   url: https://github.com/basnijholt/dotbins
+- branch: main
+  name: unidep
+  patterns:
+    README + Code:
+    - unidep/*.py
+    - README.md
+  url: https://github.com/basnijholt/unidep/
+- branch: main
+  name: clip-files-ui
+  patterns:
+    All:
+    - README.md
+    - '*.py'
+    - tests/*.py
+    - templates/*
+  url: https://github.com/basnijholt/clip-files-ui
