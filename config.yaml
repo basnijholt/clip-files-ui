@@ -18,7 +18,7 @@ repositories:
     - pipefunc/map/*.py
     - docs/source/examples/*md
     - docs/source/concepts/*.md
-    - README.md
+    - *.md
     Docs Only:
     - docs/source/examples/*md
     - docs/source/concepts/*.md
