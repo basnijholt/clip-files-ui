@@ -15,6 +15,7 @@ repositories:
     Core + Docs:
     - pipefunc/*.py
     - pipefunc/_pipeline/*.py
+    - pipefunc/map/*.py
     - docs/source/examples/*md
     - docs/source/concepts/*.md
     - README.md
