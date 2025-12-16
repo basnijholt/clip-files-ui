@@ -20,6 +20,8 @@ services:
       - traefik.http.routers.clip-files-local.rule=Host(`clip.local`)
       - traefik.http.routers.clip-files-local.entrypoints=web
       - traefik.http.services.clip-files.loadbalancer.server.port=8000
+      - kuma.clip-files.http.name=Clip Files
+      - kuma.clip-files.http.url=https://clip.${DOMAIN}
 
 networks:
   mynetwork:

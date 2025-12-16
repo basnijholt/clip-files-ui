@@ -18,7 +18,7 @@ repositories:
     - pipefunc/map/*.py
     - docs/source/examples/*md
     - docs/source/concepts/*.md
-    - *.md
+    - '*.md'
     Docs Only:
     - docs/source/examples/*md
     - docs/source/concepts/*.md
@@ -60,3 +60,16 @@ repositories:
     - tests/*.py
     - templates/*
   url: https://github.com/basnijholt/clip-files-ui
+- branch: main
+  name: nijho.lt
+  patterns:
+    Blog:
+    - content/post/*/index.md
+  url: https://github.com/basnijholt/nijho.lt
+- branch: main
+  name: adaptive-lighting
+  patterns:
+    Code+README:
+    - '*.md'
+    - '*/*/*.py'
+  url: https://github.com/basnijholt/adaptive-lighting.git
