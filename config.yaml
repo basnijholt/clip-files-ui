@@ -73,3 +73,13 @@ repositories:
     - '*.md'
     - '*/*/*.py'
   url: https://github.com/basnijholt/adaptive-lighting.git
+- branch: main
+  name: compose-farm
+  patterns:
+    Code+README:
+    - README.md
+    - src/compose-farm/*py
+    - src/compose-farm/cli/*py
+    README:
+    - README.md
+  url: https://github.com/basnijholt/compose-farm
