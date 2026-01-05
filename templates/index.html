@@ -122,6 +122,16 @@
             // State variable to hold fetched content for each button
             const contentStore = {};
 
+            // Clipboard helper that works in both HTTPS and HTTP contexts
+            function copyToClipboard(text) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+            }
+
             // Function to handle the copy logic
             async function handleCopyClick(button) {
                 const repoName = button.dataset.repo;
@@ -132,7 +142,7 @@
                 // If content is already fetched, copy it
                 if (contentStore[buttonId]) {
                     try {
-                        navigator.clipboard.writeText(contentStore[buttonId].content);
+                        copyToClipboard(contentStore[buttonId].content);
                         statusElement.textContent = `Successfully copied to clipboard! (${contentStore[buttonId].tokens} tokens)`;
                         statusElement.className = 'copy-status alert alert-success d-block'; // Ensure visible
                         // Optionally reset after copy: delete contentStore[buttonId]; button.textContent = `Copy: ${patternName}`;
